@@ -357,9 +357,11 @@ export default function LandingPage() {
               communication skills with our AI-powered platform.
             </p>
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button className="bg-gradient-to-r from-blue-500 to-cyan-400 hover:from-blue-600 hover:to-cyan-500 text-white text-lg px-8 py-6 rounded-full">
-                Start Free Trial
-              </Button>
+              <Link href="/dashboard/speech">
+                <Button className="bg-gradient-to-r from-blue-500 to-cyan-400 hover:from-blue-600 hover:to-cyan-500 text-white text-lg px-8 py-6 rounded-full">
+                  Start Free Trial
+                </Button>
+              </Link>
             </motion.div>
           </motion.div>
         </div>
