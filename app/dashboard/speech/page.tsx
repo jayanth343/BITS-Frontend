@@ -1,7 +1,7 @@
 "use client";
 
 import { Upload } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   Accordion,
   AccordionContent,
@@ -23,7 +23,10 @@ interface AnalysisResponse {
 const Speech = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSpeechLoading, setIsSpeechLoading] = useState(false);
   const [res, setResponse] = useState<any | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   console.log("Current res state:", res);
 
@@ -37,7 +40,7 @@ const Speech = () => {
     if (!selectedFile) return;
     const formData = new FormData();
     formData.append("video", selectedFile);
-    const response = await fetch("http://10.1.3.104:5001/upload", {
+    const response = await fetch("http://127.0.0.1:5000/upload", {
       method: "POST",
       body: formData,
     });
@@ -58,6 +61,60 @@ const Speech = () => {
       setIsLoading(false);
     }
   };
+
+  const handleConvertAllToSpeech = async () => {
+    if (!res) return;
+
+    const analysisData = JSON.parse(res);
+    const textToConvert = `
+      Summary: ${analysisData.Summary}
+      Strengths: ${analysisData.Strengths}
+      Weaknesses: ${analysisData.Weaknesses.map(
+        (w: Weakness) => w.Weakness + ": " + w["How to improve"]
+      ).join(". ")}
+      Conclusion: ${analysisData.Conclusion}
+    `;
+
+    // Use the handleConvert logic from TextToSpeech component
+    setIsSpeechLoading(true);
+    setAudioUrl(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("report", textToConvert);
+
+      const response = await fetch("http://localhost:5000/tts", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `Server returned ${response.status}: ${response.statusText}`
+        );
+      }
+
+      const audioBlob = await response.blob();
+      const url = URL.createObjectURL(audioBlob);
+      setAudioUrl(url);
+
+      if (audioRef.current) {
+        audioRef.current
+          .play()
+          .catch((err) => console.log("Autoplay prevented:", err));
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      if (error instanceof Error) {
+        alert("Error converting text to speech: " + error.message);
+      } else {
+        alert("An unknown error occurred");
+      }
+    } finally {
+      setIsSpeechLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center p-8 bg-gray-900">
       <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent mb-8 text-center">
@@ -151,6 +208,24 @@ const Speech = () => {
               </h2>
               <p className="text-gray-300">{JSON.parse(res).Conclusion}</p>
             </div>
+          </div>
+        )}
+
+        <button
+          className="w-full mt-6 bg-gradient-to-r from-green-600 to-teal-600 text-white py-3 px-4 rounded-md font-medium hover:from-green-700 hover:to-teal-700 transition-all disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed shadow-lg"
+          disabled={!res}
+          onClick={handleConvertAllToSpeech}
+        >
+          {isLoading ? "Converting to Speech..." : "Convert All to Speech"}
+        </button>
+
+        {audioUrl && (
+          <div className="mt-4">
+            <h3 className="text-lg font-semibold mb-2">Generated Audio:</h3>
+            <audio ref={audioRef} controls className="w-full" src={audioUrl} />
+            <p className="text-sm text-gray-500 mt-1">
+              If audio doesn't play automatically, click the play button above.
+            </p>
           </div>
         )}
       </div>
