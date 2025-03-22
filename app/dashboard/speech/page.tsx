@@ -1,13 +1,14 @@
 "use client";
 
 import { Upload } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+
 interface Weakness {
   Weakness: string;
   "How to improve": string;
@@ -27,6 +28,15 @@ const Speech = () => {
   const [res, setResponse] = useState<any | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+
+  // Add new state variables for webcam recording
+  const [isRecording, setIsRecording] = useState(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
+  const [recordingPreview, setRecordingPreview] = useState<string | null>(null);
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
   console.log("Current res state:", res);
 
@@ -115,6 +125,85 @@ const Speech = () => {
     }
   };
 
+  // Add webcam handling functions
+  const startWebcam = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
+      });
+      setStream(mediaStream);
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+    } catch (error) {
+      console.error("Error accessing webcam:", error);
+      alert("Unable to access webcam. Please check permissions.");
+    }
+  };
+
+  const startRecording = () => {
+    if (!stream) return;
+
+    setRecordedChunks([]);
+    setRecordingPreview(null);
+
+    const mediaRecorder = new MediaRecorder(stream, {
+      mimeType: "video/mp4",
+    });
+
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        setRecordedChunks((prev) => [...prev, event.data]);
+      }
+    };
+
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(recordedChunks, { type: "video/webm" });
+      const url = URL.createObjectURL(blob);
+      setRecordingPreview(url);
+
+      // Convert to MP4-like format for the backend
+      const videoFile = new File([blob], "recording.webm", {
+        type: "video/webm",
+      });
+      setSelectedFile(videoFile);
+    };
+
+    mediaRecorderRef.current = mediaRecorder;
+    mediaRecorder.start();
+    setIsRecording(true);
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  // Clean up function for webcam
+  const stopWebcam = () => {
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      setStream(null);
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+    }
+  };
+
+  // Initialize webcam when component mounts
+  useEffect(() => {
+    startWebcam();
+
+    // Clean up when component unmounts
+    return () => {
+      stopWebcam();
+    };
+  }, []);
+
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center p-8 bg-gray-900">
       <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent mb-8 text-center">
@@ -123,26 +212,62 @@ const Speech = () => {
 
       <div className="max-w-4xl w-full space-y-8">
         <div className="bg-gray-900 rounded-lg shadow-xl p-6 border border-gray-800">
-          <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-700 rounded-lg p-12 hover:border-gray-600 transition-colors bg-gray-800/50">
-            <input
-              type="file"
-              accept="video/*"
-              onChange={handleFileChange}
-              className="hidden"
-              id="video-upload"
-            />
-            <label
-              htmlFor="video-upload"
-              className="cursor-pointer flex flex-col items-center"
-            >
-              <Upload className="h-12 w-12 text-gray-400 mb-3 group-hover:text-gray-300" />
-              <span className="text-gray-300 font-medium">
-                {selectedFile ? selectedFile.name : "Upload your video"}
-              </span>
-              <span className="text-sm text-gray-500 mt-1">
-                Drag and drop or click to select
-              </span>
-            </label>
+          {/* Webcam component */}
+          <div className="mb-6">
+            <h2 className="text-xl font-semibold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent mb-4">
+              Record Your Speech
+            </h2>
+
+            <div className="relative aspect-video bg-black rounded-lg overflow-hidden mb-4">
+              {recordingPreview ? (
+                <video
+                  src={recordingPreview}
+                  controls
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover"
+                />
+              )}
+
+              {isRecording && (
+                <div className="absolute top-4 right-4 flex items-center">
+                  <div className="w-3 h-3 rounded-full bg-red-500 mr-2 animate-pulse"></div>
+                  <span className="text-white text-sm font-medium">
+                    Recording
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex space-x-4">
+              <button
+                onClick={startRecording}
+                disabled={isRecording || !stream}
+                className="flex-1 bg-red-600 text-white py-2 px-4 rounded-md font-medium hover:bg-red-700 transition-all disabled:bg-gray-600 disabled:cursor-not-allowed"
+              >
+                Start Recording
+              </button>
+
+              <button
+                onClick={stopRecording}
+                disabled={!isRecording}
+                className="flex-1 bg-gray-700 text-white py-2 px-4 rounded-md font-medium hover:bg-gray-800 transition-all disabled:bg-gray-600 disabled:cursor-not-allowed"
+              >
+                Stop Recording
+              </button>
+            </div>
+
+            {selectedFile && recordingPreview && (
+              <p className="text-sm text-green-500 mt-2">
+                Recording saved! Click "Get AI Review" to analyze.
+              </p>
+            )}
           </div>
 
           <button
@@ -216,7 +341,9 @@ const Speech = () => {
           disabled={!res}
           onClick={handleConvertAllToSpeech}
         >
-          {isLoading ? "Converting to Speech..." : "Convert All to Speech"}
+          {isSpeechLoading
+            ? "Converting to Speech..."
+            : "Convert All to Speech"}
         </button>
 
         {audioUrl && (

@@ -81,6 +81,7 @@ const Interview = () => {
       body: formData,
     });
     const data = await response.json();
+    // const parsedData = JSON.parse(data);
     return data.original_text || data; // Extract original_text if it exists
   };
 

@@ -172,8 +172,8 @@ export default function LandingPage() {
             transition={{ duration: 0.5 }}
             className="max-w-3xl mx-auto text-center"
           >
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-blue-200 via-cyan-200 to-blue-200 bg-clip-text text-transparent drop-shadow-sm">
-              Boost Your Confidence Using AI
+            <h1 className="text-4xl md:text-6xl font-bold mb-8 bg-gradient-to-r from-blue-200 via-cyan-200 to-blue-200 bg-clip-text text-transparent drop-shadow-sm">
+              Enhance Your Soft Skills using AI
             </h1>
             <p className="text-lg md:text-xl text-blue-100/90 mb-8 leading-relaxed">
               Enhance your communication skills, overcome anxiety, and present
