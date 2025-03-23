@@ -32,7 +32,7 @@ const Training = () => {
           setIsLoading(false);
         };
 
-        img.src = "http://localhost:8000/video_feed";
+        img.src = "http://localhost:5000/video_feed";
       }
     }
   }, [activeSection]);
